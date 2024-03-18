@@ -1,35 +1,37 @@
-#https://github.com/marketplace/actions/android-emulator-runner
-name: Build APK
-on:
-  push
-
 jobs:
   apk-build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
-      - name: checkout
-        uses: actions/checkout@v4
+    - continue-on-error: true
+      name: checkout
+      uses: actions/checkout@v4
+    - continue-on-error: true
+      uses: actions/setup-java@v4
+      with:
+        distribution: adopt
+        java-version: '17'
+    - continue-on-error: true
+      env:
+        NIGHTLY_KEY_ALIAS: ${{ secrets.NIGHTLY_KEY_ALIAS }}
+        NIGHTLY_STORE_FILE: ${{ secrets.NIGHTLY_STORE_FILE }}
+        NIGHTLY_STORE_PASSWORD: ${{ secrets.NIGHTLY_STORE_PASSWORD }}
+      name: Assemble APK
+      run: 'echo ${NIGHTLY_STORE_FILE} | base64 -d > KEY_NIGHTLY.jks
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'adopt'
-          java-version: '17'
+        ./gradlew assembleNightly -Dnightly_store_file=KEY_NIGHTLY.jks -Dnightly_store_password="${NIGHTLY_STORE_PASSWORD}"
+        -Dnightly_key_alias="${NIGHTLY_KEY_ALIAS}" -Dnightly_key_password="${NIGHTLY_STORE_PASSWORD}"
 
-      - name: Assemble APK
-        shell: bash
-        run: |
-          echo ${NIGHTLY_STORE_FILE} | base64 -d > KEY_NIGHTLY.jks
-          ./gradlew assembleNightly -Dnightly_store_file=KEY_NIGHTLY.jks -Dnightly_store_password="${NIGHTLY_STORE_PASSWORD}" -Dnightly_key_alias="${NIGHTLY_KEY_ALIAS}" -Dnightly_key_password="${NIGHTLY_STORE_PASSWORD}"
-        env:
-          NIGHTLY_STORE_FILE: ${{ secrets.NIGHTLY_STORE_FILE }}
-          NIGHTLY_STORE_PASSWORD: ${{ secrets.NIGHTLY_STORE_PASSWORD }}
-          NIGHTLY_KEY_ALIAS: ${{ secrets.NIGHTLY_KEY_ALIAS }}
-
-      - name: Archive
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: OpenTracks-APK.apk
-          path: ./build/outputs/apk/nightly/*.apk
-          retention-days: 7
-
+        '
+      shell: bash
+    - continue-on-error: true
+      if: always()
+      name: Archive
+      uses: actions/upload-artifact@v4
+      with:
+        name: OpenTracks-APK.apk
+        path: ./build/outputs/apk/nightly/*.apk
+        retention-days: 7
+name: Build APK
+on:
+  repository_dispatch:
+    types: trigger-ga___build_apk.yml
